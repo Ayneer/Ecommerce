@@ -1,6 +1,6 @@
 package com.ias.ecommerce.controller;
 
-import com.ias.ecommerce.Service.RoleService;
+import com.ias.ecommerce.service.RoleService;
 import com.ias.ecommerce.entity.Role;
 import com.ias.ecommerce.entity.User;
 import com.ias.ecommerce.entity.UserDetail;

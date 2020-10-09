@@ -1,4 +1,4 @@
-package com.ias.ecommerce.Service;
+package com.ias.ecommerce.service;
 
 import com.ias.ecommerce.entity.User;
 import com.ias.ecommerce.repository.UserRepository;

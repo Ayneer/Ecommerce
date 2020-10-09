@@ -1,4 +1,4 @@
-package com.ias.ecommerce.Service;
+package com.ias.ecommerce.service;
 
 import com.ias.ecommerce.entity.Role;
 import com.ias.ecommerce.exception.customs.DataNotFoundException;
