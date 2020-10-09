@@ -21,7 +21,7 @@ public class Order implements Serializable {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private long id;
 
-    private long total;
+    private float total;
     private LocalDateTime dateOrder;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -51,11 +51,11 @@ public class Order implements Serializable {
         this.id = id;
     }
 
-    public long getTotal() {
+    public float getTotal() {
         return total;
     }
 
-    public void setTotal(long total) {
+    public void setTotal(float total) {
         this.total = total;
     }
 

@@ -1,6 +1,6 @@
 package com.ias.ecommerce.controller;
 
-import com.ias.ecommerce.Service.UserService;
+import com.ias.ecommerce.service.UserService;
 import com.ias.ecommerce.entity.Product;
 import com.ias.ecommerce.entity.User;
 import com.ias.ecommerce.exception.ApiResponse;
@@ -54,10 +54,9 @@ public class ProductController {
     }
 
     @GetMapping("/products")
-    public ResponseEntity<Object> findByUsername(){
+    public ResponseEntity<Object> getProducts(){
 
         String username = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
-        //String role = SecurityContextHolder.getContext().getAuthentication().getAuthorities().iterator().next().toString();
 
         User user = userService.findByUsername(username).orElseThrow(() -> new DataNotFoundException("The User with ID: "+username+DO_NOT_EXIST));
 
