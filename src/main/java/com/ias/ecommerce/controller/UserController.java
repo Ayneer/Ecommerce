@@ -1,5 +1,6 @@
 package com.ias.ecommerce.controller;
 
+import com.ias.ecommerce.security.Auth;
 import com.ias.ecommerce.service.RoleService;
 import com.ias.ecommerce.entity.Role;
 import com.ias.ecommerce.entity.User;
@@ -11,6 +12,7 @@ import com.ias.ecommerce.exception.customs.OperationNotCompletedException;
 import com.ias.ecommerce.repository.RoleRepository;
 import com.ias.ecommerce.repository.UserRepository;
 import com.ias.ecommerce.security.JwtUtil;
+import com.ias.ecommerce.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,42 +25,49 @@ import java.util.*;
 @RestController
 public class UserController {
 
-    private final UserRepository userRepository;
-    private final RoleService roleService;
     private static final Integer MAX_ATTEMPT_LOGIN = 3;
     private static final long TIME_BETWEEN_FAILED = 1; //In hours
+    private static final String CREATE_USER_EMPLOYEE = "CREATE_USER_EMPLOYEE";
+
+    private final UserRepository userRepository;
+    private final RoleService roleService;
     private final JwtUtil jwtUtil;
+    private Auth auth;
 
     UserController(UserRepository userRepository, RoleRepository roleRepository){
         this.userRepository = userRepository;
         this.roleService = new RoleService(roleRepository);
         this.jwtUtil = new JwtUtil();
+        this.auth = new Auth(new UserService(userRepository));
     }
 
-    @PostMapping("/user")
-    public ResponseEntity<Object> create(@RequestParam(value = "userName") String userName,
+    @PostMapping("/user/employee")
+    public ResponseEntity<Object> createEmployee(@RequestParam(value = "userName") String userName,
                                  @RequestParam(value = "password") String password,
                                  @RequestParam(value = "name") String name,
-                                 @RequestParam(value = "email") String email,
-                                 @RequestParam(value = "roleId") int roleId) {
+                                 @RequestParam(value = "email") String email) {
 
-        Optional<User> userOptional = userRepository.findByUserName(userName);
-        Role roleFound = roleService.getById(roleId);
-
-        if(userOptional.isPresent()){
-            throw new OperationNotCompletedException("Already exist a user with the username: "+userName);
+        if(!auth.isAdmin() || !auth.hasPermission(CREATE_USER_EMPLOYEE)){
+            throw new AuthorizationException("You can not do it this action");
         }
 
-        User newUser = new User(userName, password, true, null, 0);
-        UserDetail newUserDetail = new UserDetail(name, email);
+        Role employeeRole = roleService.findByName(Auth.getEmployeeRoleName());
 
-        newUserDetail.setUser(newUser);
-        newUser.setUserDetail(newUserDetail);
-        newUser.setRole(roleFound);
+        User newUser = createUser(userName, password, name, email, employeeRole);
+        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "Employee user created successfully", newUser, HttpStatus.OK.value(), false);
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
 
-        userRepository.save(newUser);
-        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "User created successfully", newUser, HttpStatus.OK.value(), false);
+    @PostMapping("/user/costumer")
+    public ResponseEntity<Object> createCostumer(@RequestParam(value = "userName") String userName,
+                                         @RequestParam(value = "password") String password,
+                                         @RequestParam(value = "name") String name,
+                                         @RequestParam(value = "email") String email) {
 
+        Role costumerRole = roleService.findByName(Auth.getCostumerRoleName());
+
+        User newUser = createUser(userName, password, name, email, costumerRole);
+        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "Costumer user created successfully", newUser, HttpStatus.OK.value(), false);
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
@@ -162,6 +171,22 @@ public class UserController {
 
         ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "User update successfully", optionalUser.get(), HttpStatus.OK.value(), false);
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    private User createUser(String userName, String password, String name, String email, Role role){
+
+        userRepository.findByUserName(userName).ifPresent(user -> {
+            throw new OperationNotCompletedException("Already exist a user with the username: "+userName);
+        });
+
+        User newUser = new User(userName, password, true, null, 0);
+        UserDetail newUserDetail = new UserDetail(name, email);
+
+        newUserDetail.setUser(newUser);
+        newUser.setUserDetail(newUserDetail);
+        newUser.setRole(role);
+
+        return userRepository.save(newUser);
     }
 
     private User checkUserCredentials(String userName, String password){

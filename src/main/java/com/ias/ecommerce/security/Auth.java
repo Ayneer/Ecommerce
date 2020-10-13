@@ -26,6 +26,10 @@ public class Auth {
         return SecurityContextHolder.getContext().getAuthentication().getAuthorities().iterator().next().toString();
     }
 
+    public boolean hasPermission(String permission){
+        return getUserAuth().getRole().getPermissionList().stream().anyMatch(permissionItem -> permissionItem.getName().equals(permission));
+    }
+
     public boolean isAdmin(){
         return ADMIN_ROLE_NAME.equals(getRoleName());
     }
@@ -38,4 +42,11 @@ public class Auth {
         return EMPLOYEE_ROLE_NAME.equals(getRoleName());
     }
 
+    public static String getEmployeeRoleName() {
+        return EMPLOYEE_ROLE_NAME;
+    }
+
+    public static String getCostumerRoleName() {
+        return COSTUMER_ROLE_NAME;
+    }
 }

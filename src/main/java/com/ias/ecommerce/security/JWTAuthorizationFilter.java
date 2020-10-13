@@ -24,7 +24,7 @@ public class JWTAuthorizationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil = new JwtUtil();
 
     @Override
-    protected void doFilterInternal(@NotNull HttpServletRequest httpServletRequest, @NotNull HttpServletResponse httpServletResponse, @NotNull FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(@NotNull HttpServletRequest httpServletRequest, @NotNull HttpServletResponse httpServletResponse, @NotNull FilterChain filterChain) throws IOException {
         try{
             if(jwtUtil.hasToken(httpServletRequest)){
                 Claims claims = jwtUtil.validateToken(httpServletRequest);
@@ -37,12 +37,8 @@ public class JWTAuthorizationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.clearContext();
             }
             filterChain.doFilter(httpServletRequest, httpServletResponse);
-        }catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException exception){
-            httpServletResponse.setStatus(HttpStatus.FORBIDDEN.value());
-            httpServletResponse.setContentType("application/json");
-            httpServletResponse.setCharacterEncoding("UTF-8");
-            ApiResponse apiResponse = new ApiResponse(HttpStatus.FORBIDDEN, exception.getMessage(), HttpStatus.FORBIDDEN.value(), true);
-            httpServletResponse.getWriter().write(jwtUtil.objectToJson(apiResponse));
+        }catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException | ServletException | IOException exception){
+            sendJwtAuthError(exception.getMessage(), httpServletResponse);
         }
     }
 
@@ -57,6 +53,14 @@ public class JWTAuthorizationFilter extends OncePerRequestFilter {
         );
 
         SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+    }
+
+    private void sendJwtAuthError(String message, HttpServletResponse httpServletResponse) throws IOException {
+        httpServletResponse.setStatus(HttpStatus.FORBIDDEN.value());
+        httpServletResponse.setContentType("application/json");
+        httpServletResponse.setCharacterEncoding("UTF-8");
+        ApiResponse apiResponse = new ApiResponse(HttpStatus.FORBIDDEN, message, HttpStatus.FORBIDDEN.value(), true);
+        httpServletResponse.getWriter().write(jwtUtil.objectToJson(apiResponse));
     }
 
 }

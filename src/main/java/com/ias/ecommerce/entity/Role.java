@@ -23,6 +23,15 @@ public class Role implements Serializable {
     @JsonIgnore
     private List<User> users;
 
+    @ManyToMany
+    @JoinTable(
+            name = "role_permission",
+            joinColumns = @JoinColumn(name = "FK_ROLE"),
+            inverseJoinColumns = @JoinColumn(name = "FK_PERMISSION")
+    )
+    @JsonIgnore
+    private List<Permission> permissionList;
+
     public Role(){
         this.users = new ArrayList<>();
     }
@@ -62,6 +71,18 @@ public class Role implements Serializable {
 
     public void setUsers(List<User> users) {
         this.users = users;
+    }
+
+    public List<Permission> getPermissionList() {
+        return permissionList;
+    }
+
+    public void setPermissionList(List<Permission> permissionList) {
+        this.permissionList = permissionList;
+    }
+
+    public void addPermissionItem(Permission permission){
+        this.permissionList.add(permission);
     }
 
     @Override

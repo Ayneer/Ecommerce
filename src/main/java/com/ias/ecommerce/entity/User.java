@@ -1,7 +1,6 @@
 package com.ias.ecommerce.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.aspectj.weaver.ast.Or;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
 import javax.persistence.*;
@@ -40,7 +39,7 @@ public class User implements Serializable {
     @JsonIgnore
     private List<Order> orderList;
 
-    public User(){};
+    public User(){}
 
     public User(String userName, String password, boolean enabled, LocalDateTime lastFailedAccess, Integer countFailedAccess){
         this.userName = validateEmptyValue(userName, 5, "user name");

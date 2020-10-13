@@ -18,4 +18,8 @@ public class RoleService {
         return roleRepository.findById(id).orElseThrow( () -> new DataNotFoundException("The Role with ID: "+id+" does not exist."));
     }
 
+    public Role findByName(String name){
+        return roleRepository.findByName(name).orElseThrow( () -> new DataNotFoundException("The Role with Name: "+name+" not exist."));
+    }
+
 }
