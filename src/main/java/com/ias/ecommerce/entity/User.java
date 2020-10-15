@@ -1,6 +1,7 @@
 package com.ias.ecommerce.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.ias.ecommerce.exception.customs.OperationNotCompletedException;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
 import javax.persistence.*;
@@ -26,7 +27,7 @@ public class User implements Serializable {
     @JsonIgnore
     private UserDetail userDetail;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = CascadeType.ALL)
     @JoinColumn(name = "FK_ROLE", nullable = false)
     @JsonIgnore
     private Role role;
@@ -49,37 +50,12 @@ public class User implements Serializable {
         this.countFailedAccess = countFailedAccess;
     }
 
-    private String validateEmptyValue(String value, int minLength, String nameValue){
-        if(value.isEmpty() || value.trim().isEmpty() || value.length() < minLength){
-            throw new IllegalArgumentException("The "+nameValue+" can't be empty and must be minimum "+minLength+" character.");
-        }
-
-        return value.trim();
-    }
-
-    private String validatePassword(String password){
-
-        if(password.isEmpty() || password.trim().isEmpty() || password.length() < 6){
-            throw new IllegalArgumentException("The password is wrong. Must be minimum 6 character");
-        }
-
-        return hasPassword(password);
-    }
-
-    private String hasPassword(String password){
-        return BCrypt.hashpw(password.trim(), BCrypt.gensalt());
-    }
-
-    public boolean isValidPassword(String password){
-        return BCrypt.checkpw(password, this.password);
-    }
-
     public String getUserName() {
         return userName;
     }
 
     public void setUserName(String userName) {
-        this.userName = userName;
+        this.userName = validateEmptyValue(userName, 5, "user name");
     }
 
     public String getPassword() {
@@ -87,7 +63,7 @@ public class User implements Serializable {
     }
 
     public void setPassword(String password) {
-        this.password = password;
+        this.password = validatePassword(password);
     }
 
     public boolean isEnabled() {
@@ -154,10 +130,36 @@ public class User implements Serializable {
         this.orderList = orderList;
     }
 
+    private String validateEmptyValue(String value, int minLength, String nameValue){
+        if(value.isEmpty() || value.trim().isEmpty() || value.length() < minLength){
+            throw new OperationNotCompletedException("The "+nameValue+" can't be empty and must be minimum "+minLength+" character.");
+        }
+
+        return value.trim();
+    }
+
+    private String validatePassword(String password){
+
+        if(password.isEmpty() || password.trim().isEmpty() || password.length() < 6){
+            throw new OperationNotCompletedException("The password is wrong. Must be minimum 6 character");
+        }
+
+        return hasPassword(password);
+    }
+
+    private String hasPassword(String password){
+        return BCrypt.hashpw(password.trim(), BCrypt.gensalt());
+    }
+
+    public boolean isValidPassword(String password){
+        return BCrypt.checkpw(password, this.password);
+    }
+
     @Override
     public String toString() {
         return "User{" +
-                "userName='" + userName + '\'' +
+                "id=" + id +
+                ", userName='" + userName + '\'' +
                 ", password='" + password + '\'' +
                 ", enabled=" + enabled +
                 ", lastFailedAccess=" + lastFailedAccess +

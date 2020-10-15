@@ -1,6 +1,8 @@
 package com.ias.ecommerce.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.ias.ecommerce.exception.customs.OperationNotCompletedException;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -19,26 +21,49 @@ public class Role implements Serializable {
     private String name;
     private String description;
 
-    @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
+    @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<User> users;
 
+    @JsonIgnore
     @ManyToMany
     @JoinTable(
             name = "role_permission",
             joinColumns = @JoinColumn(name = "FK_ROLE"),
             inverseJoinColumns = @JoinColumn(name = "FK_PERMISSION")
     )
-    @JsonIgnore
     private List<Permission> permissionList;
 
     public Role(){
         this.users = new ArrayList<>();
+        this.permissionList = new ArrayList<>();
     }
 
     public Role(String name, String description){
-        this.name = name;
-        this.description = description;
+        this.name = validateName(name);
+        this.description = validateDescription(description);
+    }
+
+    public Role(String name, String description, Integer id){
+        this.name = validateName(name);
+        this.description = validateDescription(description);
+        this.id = id;
+    }
+
+    private String validateName(String name){
+        if(name.isEmpty() || name.trim().isEmpty()){
+            throw new OperationNotCompletedException("The name can't be empty");
+        }
+
+        return name.trim();
+    }
+
+    private String validateDescription(String description){
+        if(description.isEmpty() || description.trim().isEmpty() || description.length() < 5){
+            throw new OperationNotCompletedException("The description can't be empty and must be minimum "+5+" character.");
+        }
+
+        return description.trim();
     }
 
     public Integer getId() {
@@ -54,7 +79,7 @@ public class Role implements Serializable {
     }
 
     public void setName(String name) {
-        this.name = name;
+        this.name = validateName(name);
     }
 
     public String getDescription() {
@@ -62,7 +87,7 @@ public class Role implements Serializable {
     }
 
     public void setDescription(String description) {
-        this.description = description;
+        this.description = validateDescription(description);
     }
 
     public List<User> getUsers() {

@@ -8,4 +8,8 @@ public class AuthorizationException extends RuntimeException {
         super(message);
     }
 
+    public AuthorizationException(){
+        super("You cannot do this action");
+    }
+
 }

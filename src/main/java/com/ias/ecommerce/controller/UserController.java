@@ -4,40 +4,39 @@ import com.ias.ecommerce.security.Auth;
 import com.ias.ecommerce.service.RoleService;
 import com.ias.ecommerce.entity.Role;
 import com.ias.ecommerce.entity.User;
-import com.ias.ecommerce.entity.UserDetail;
 import com.ias.ecommerce.exception.ApiResponse;
 import com.ias.ecommerce.exception.customs.AuthorizationException;
 import com.ias.ecommerce.exception.customs.DataNotFoundException;
-import com.ias.ecommerce.exception.customs.OperationNotCompletedException;
 import com.ias.ecommerce.repository.RoleRepository;
 import com.ias.ecommerce.repository.UserRepository;
 import com.ias.ecommerce.security.JwtUtil;
 import com.ias.ecommerce.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @RestController
 public class UserController {
+    private static final String MESSAGE_USER_NOT_FOUND = "Does not exist a user with ID: ";
 
-    private static final Integer MAX_ATTEMPT_LOGIN = 3;
-    private static final long TIME_BETWEEN_FAILED = 1; //In hours
     private static final String CREATE_USER_EMPLOYEE = "CREATE_USER_EMPLOYEE";
+    private static final String READ_ALL_USERS = "READ_ALL_USERS";
+    private static final String UPDATE_ALL_USERS = "UPDATE_ALL_USERS";
+    private static final String DELETE_ALL_USERS = "DELETE_ALL_USERS";
 
     private final UserRepository userRepository;
+    private final UserService userService;
     private final RoleService roleService;
     private final JwtUtil jwtUtil;
-    private Auth auth;
+    private final Auth auth;
 
     UserController(UserRepository userRepository, RoleRepository roleRepository){
         this.userRepository = userRepository;
         this.roleService = new RoleService(roleRepository);
         this.jwtUtil = new JwtUtil();
+        this.userService = new UserService(userRepository);
         this.auth = new Auth(new UserService(userRepository));
     }
 
@@ -48,12 +47,12 @@ public class UserController {
                                  @RequestParam(value = "email") String email) {
 
         if(!auth.isAdmin() || !auth.hasPermission(CREATE_USER_EMPLOYEE)){
-            throw new AuthorizationException("You can not do it this action");
+            throw new AuthorizationException();
         }
 
         Role employeeRole = roleService.findByName(Auth.getEmployeeRoleName());
+        User newUser = userService.createUser(userName, password, name, email, employeeRole);
 
-        User newUser = createUser(userName, password, name, email, employeeRole);
         ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "Employee user created successfully", newUser, HttpStatus.OK.value(), false);
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
@@ -65,189 +64,119 @@ public class UserController {
                                          @RequestParam(value = "email") String email) {
 
         Role costumerRole = roleService.findByName(Auth.getCostumerRoleName());
+        User newUser = userService.createUser(userName, password, name, email, costumerRole);
 
-        User newUser = createUser(userName, password, name, email, costumerRole);
         ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "Costumer user created successfully", newUser, HttpStatus.OK.value(), false);
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
-    @PutMapping("/user")
-    public ResponseEntity<Object> update(@RequestParam(value = "name") String name,
-                                         @RequestParam(value = "email") String email){
-
-        String username = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
-        Optional<User> userOptional = userRepository.findByUserName(username);
-
-        if(userOptional.isEmpty()){
-            throw new OperationNotCompletedException("The User with username: "+username+" do not exist.");
-        }
-
-        userOptional.get().getUserDetail().setName(name);
-        userOptional.get().getUserDetail().setEmail(email);
-        userRepository.save(userOptional.get());
-
-        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "User updated successfully", userOptional.get(), HttpStatus.OK.value(), false);
-        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
-    }
-
-    @DeleteMapping("/user/{id}")
-    public ResponseEntity<Object> delete(@PathVariable(value = "id") long id){
-
-        Optional<User> userOptional = userRepository.findById(id);
-
-        if(userOptional.isEmpty()){
-            throw new OperationNotCompletedException("The User with id: "+id+" do not exist.");
-        }
-
-        userRepository.delete(userOptional.get());
-
-        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "User deleted successfully", userOptional.get(), HttpStatus.OK.value(), false);
-        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
-    }
-
     @GetMapping("/users")
-    public ResponseEntity<Object> getUsers(){
+    public ResponseEntity<Object> readAll(){
+
+        if(!auth.isAdmin() || !auth.hasPermission(READ_ALL_USERS)){
+            throw new AuthorizationException();
+        }
 
         List<User> userList = new ArrayList<>();
         userRepository.findAll().forEach(userList::add);
+        userList.removeIf(user -> user.getId().equals(auth.getUserAuth().getId()));
 
         ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "Get all users successfully", userList, HttpStatus.OK.value(), false);
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
-    @GetMapping("/user/current")
-    public ResponseEntity<Object> getUserCurrent(){
+    @GetMapping("/user/{id}")
+    public ResponseEntity<Object> readOne(@PathVariable(value = "id") long id){
 
-        String username = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
-        Optional<User> userOptional = userRepository.findByUserName(username);
-
-        if(userOptional.isEmpty()){
-            throw new OperationNotCompletedException("The User with username: "+username+" do not exist.");
+        if(!auth.isAdmin() || !auth.hasPermission(READ_ALL_USERS)){
+            throw new AuthorizationException();
         }
 
-        Map<String, Object> stringObjectMap = new HashMap<>();
-        stringObjectMap.put("User", userOptional.get());
-        stringObjectMap.put("Role", userOptional.get().getRole());
-        stringObjectMap.put("UserDetails", userOptional.get().getUserDetail());
+        User user = userRepository.findById(id).orElseThrow( () -> new DataNotFoundException(MESSAGE_USER_NOT_FOUND+id) );
+        Role role = new Role(user.getRole().getName(), user.getRole().getDescription(), user.getRole().getId());
 
-        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "User info current got successfully", stringObjectMap, HttpStatus.OK.value(), false);
+        Map<String, Object> stringObjectMap = userService.mapUserInfo(user, role, user.getUserDetail());
 
+        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "Get user successfully", stringObjectMap, HttpStatus.OK.value(), false);
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @GetMapping("/user/current")
+    public ResponseEntity<Object> readUserCurrent(){
+
+        User user = auth.getUserAuth();
+        Role role = new Role(user.getRole().getName(), user.getRole().getDescription(), user.getRole().getId());
+
+        Map<String, Object> stringObjectMap = userService.mapUserInfo(user, role, user.getUserDetail());
+
+        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "User info current get successfully", stringObjectMap, HttpStatus.OK.value(), false);
+
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @PutMapping("/user/details")
+    public ResponseEntity<Object> update(@RequestParam(value = "name") String name,
+                                         @RequestParam(value = "email") String email){
+
+        User user = auth.getUserAuth();
+
+        user.getUserDetail().setName(name);
+        user.getUserDetail().setEmail(email);
+        userRepository.save(user);
+
+        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "User updated successfully", user, HttpStatus.OK.value(), false);
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @PutMapping("/user/lock/{id}")
+    public ResponseEntity<Object> changeUserLock(@RequestParam(value = "blockUser") boolean blockUser,
+                                                 @PathVariable(value = "id") long id){
+
+        if(!auth.isAdmin() || !auth.hasPermission(UPDATE_ALL_USERS)){
+            throw new AuthorizationException();
+        }
+
+        User user = userRepository.findById(id).orElseThrow( () -> new DataNotFoundException(MESSAGE_USER_NOT_FOUND+id) );
+
+        user.setEnabled(!blockUser);
+        user.setLastFailedAccess(null);
+        user.setCountFailedAccess(0);
+        userRepository.save(user);
+
+        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "User "+ (blockUser ? "locked" : "unlocked") +" successfully", user, HttpStatus.OK.value(), false);
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+
+    @DeleteMapping("/user/{id}")
+    public ResponseEntity<Object> delete(@PathVariable(value = "id") long id){
+
+        if(!auth.isAdmin() || !auth.hasPermission(DELETE_ALL_USERS)){
+            throw new AuthorizationException();
+        }
+
+        User user = userRepository.findById(id).orElseThrow( () -> new DataNotFoundException(MESSAGE_USER_NOT_FOUND+id) );
+
+        userRepository.delete(user);
+
+        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "User deleted successfully", user, HttpStatus.OK.value(), false);
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
     @PostMapping("/user/login")
     public ResponseEntity<Object> logIn(@RequestParam(value = "userName") String userName,
-                        @RequestParam(value = "password") String password){
+                                        @RequestParam(value = "password") String password){
 
-        User user = checkUserCredentials(userName, password);
+        User user = userService.checkUserCredentials(userName, password);
+        Role role = new Role(user.getRole().getName(), user.getRole().getDescription(), user.getRole().getId());
 
-        String token = jwtUtil.getJwtToken(userName, user.getRole().getName());
+        String token = jwtUtil.getJwtToken(userName, role.getName());
 
-        Map<String, Object> stringObjectMap = new HashMap<>();
-        stringObjectMap.put("User", user);
-        stringObjectMap.put("Role", user.getRole());
-        stringObjectMap.put("UserDetails", user.getUserDetail());
+        Map<String, Object> stringObjectMap = userService.mapUserInfo(user, role, user.getUserDetail());
         stringObjectMap.put("Token", token);
 
         ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "Login successfully", stringObjectMap, HttpStatus.OK.value(), false);
-
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
-    }
-
-    @PostMapping("/user/lock/{username}")
-    public ResponseEntity<Object> changeUserLock(@RequestParam(value = "blockUser") boolean blockUser,
-                                            @PathVariable(value = "username") String username){
-
-        Optional<User> optionalUser = userRepository.findByUserName(username);
-
-        if(optionalUser.isEmpty()){
-            throw new DataNotFoundException("The user do not exist.");
-        }
-
-        optionalUser.get().setEnabled(blockUser);
-        optionalUser.get().setLastFailedAccess(null);
-        optionalUser.get().setCountFailedAccess(0);
-        userRepository.save(optionalUser.get());
-
-        ApiResponse apiResponse = new ApiResponse(HttpStatus.OK, "User update successfully", optionalUser.get(), HttpStatus.OK.value(), false);
-        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
-    }
-
-    private User createUser(String userName, String password, String name, String email, Role role){
-
-        userRepository.findByUserName(userName).ifPresent(user -> {
-            throw new OperationNotCompletedException("Already exist a user with the username: "+userName);
-        });
-
-        User newUser = new User(userName, password, true, null, 0);
-        UserDetail newUserDetail = new UserDetail(name, email);
-
-        newUserDetail.setUser(newUser);
-        newUser.setUserDetail(newUserDetail);
-        newUser.setRole(role);
-
-        return userRepository.save(newUser);
-    }
-
-    private User checkUserCredentials(String userName, String password){
-
-        Optional<User> userOptional = userRepository.findByUserName(userName);
-
-        if(userOptional.isPresent() && !userOptional.get().isEnabled()){
-            throw new AuthorizationException("The account is blocked, get in touch with your admin to enable it.");
-        }
-
-        if(userOptional.isEmpty() || !userOptional.get().isValidPassword(password)){
-            String errorMessage = "The username or password is invalid, please check it and try again.";
-            if(userOptional.isPresent()){
-                errorMessage = verifyFailedAccess(userOptional.get());
-            }
-            throw new AuthorizationException(errorMessage);
-        }
-
-        return userOptional.get();
-    }
-
-    private String verifyFailedAccess(User user){
-
-        Integer countFailedAccess = user.getCountFailedAccess();
-        LocalDateTime nowDate = LocalDateTime.now();
-        String message = "The username or password is invalid, please check it and try again.";
-
-        if(countFailedAccess == 0){
-            user.setLastFailedAccess(LocalDateTime.now());
-            user.setCountFailedAccess(1);
-            userRepository.save(user);
-            return message + " Have 2 attempts left.";
-        }
-
-        Integer newCountFailedAccess = getCountFailedAccessByTime(user, nowDate);
-        user.setLastFailedAccess(nowDate);
-        user.setCountFailedAccess(newCountFailedAccess);
-
-        if(newCountFailedAccess >= MAX_ATTEMPT_LOGIN){
-            user.setEnabled(false);
-            message = "The account has been blocked, get in touch with your admin to enable it.";
-        }else{
-            message = message + " Have "+(MAX_ATTEMPT_LOGIN - newCountFailedAccess)+" attempts left.";
-        }
-
-        userRepository.save(user);
-        return message;
-    }
-
-    private Integer getCountFailedAccessByTime(User user, LocalDateTime nowDate){
-
-        long hours = ChronoUnit.HOURS.between(user.getLastFailedAccess(), nowDate);
-        Integer countFailedAccess = user.getCountFailedAccess();
-
-        if(hours <= TIME_BETWEEN_FAILED){
-            countFailedAccess++;
-        }else{
-            countFailedAccess = 1;
-        }
-
-        return countFailedAccess;
     }
 
 }

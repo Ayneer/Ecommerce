@@ -24,7 +24,7 @@ public class JWTAuthorizationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil = new JwtUtil();
 
     @Override
-    protected void doFilterInternal(@NotNull HttpServletRequest httpServletRequest, @NotNull HttpServletResponse httpServletResponse, @NotNull FilterChain filterChain) throws IOException {
+    protected void doFilterInternal(@NotNull HttpServletRequest httpServletRequest, @NotNull HttpServletResponse httpServletResponse, @NotNull FilterChain filterChain) throws ServletException, IOException {
         try{
             if(jwtUtil.hasToken(httpServletRequest)){
                 Claims claims = jwtUtil.validateToken(httpServletRequest);
@@ -37,7 +37,7 @@ public class JWTAuthorizationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.clearContext();
             }
             filterChain.doFilter(httpServletRequest, httpServletResponse);
-        }catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException | ServletException | IOException exception){
+        }catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException | IOException exception){
             sendJwtAuthError(exception.getMessage(), httpServletResponse);
         }
     }

@@ -1,5 +1,6 @@
 package com.ias.ecommerce.security;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -26,15 +27,13 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .authorizeRequests()
                 .antMatchers(HttpMethod.POST, "/user/login").permitAll()
                 .antMatchers(HttpMethod.POST, "/user/costumer").permitAll()
-                .antMatchers( "/permission/**").permitAll()
-                .antMatchers( "/role_permission/**").permitAll()
-                .antMatchers( "/role/**").permitAll()
                 .anyRequest().authenticated().and()
                 .exceptionHandling()
                 .authenticationEntryPoint(authenticationEntryPoint());
 
     }
 
+    @Bean
     public AuthenticationEntryPoint authenticationEntryPoint(){
         return new CustomAuthenticationEntityPoint();
     }

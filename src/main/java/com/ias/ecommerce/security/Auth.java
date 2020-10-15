@@ -49,4 +49,8 @@ public class Auth {
     public static String getCostumerRoleName() {
         return COSTUMER_ROLE_NAME;
     }
+
+    public static String getAdminRoleName() {
+        return ADMIN_ROLE_NAME;
+    }
 }

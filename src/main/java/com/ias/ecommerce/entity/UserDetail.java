@@ -1,6 +1,7 @@
 package com.ias.ecommerce.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.ias.ecommerce.exception.customs.OperationNotCompletedException;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -24,34 +25,8 @@ public class UserDetail implements Serializable {
     public UserDetail(){}
 
     public UserDetail(String name, String email){
-        this.name = validateEmptyValue(name, 5,"name");
+        this.name = validateName(name);
         this.email = validateEmail(email);
-    }
-
-    private String validateEmptyValue(String value, int minLength, String nameValue){
-        if(value.isEmpty() || value.trim().isEmpty() || value.length() < minLength){
-            throw new IllegalArgumentException("The "+nameValue+" can't be empty and must be minimum "+minLength+" character.");
-        }
-
-        return value.trim();
-    }
-
-    private Integer validateRoleId(Integer roleId){
-        if(roleId <= 0){
-            throw new IllegalArgumentException("Invalid roleId, please fix it. "+roleId);
-        }
-        return roleId;
-    }
-
-    private String validateEmail(String email){
-        String regex = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^-]+(?:\\.[a-zA-Z0-9_!#$%&'*+/=?`{|}~^-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
-        Pattern pattern = Pattern.compile(regex);
-
-        if(email.isEmpty() || !pattern.matcher(email).matches()){
-            throw new IllegalArgumentException("The email address is invalid: "+email);
-        }
-
-        return email;
     }
 
     public String getName() {
@@ -59,7 +34,7 @@ public class UserDetail implements Serializable {
     }
 
     public void setName(String name) {
-        this.name = name;
+        this.name = validateName(name);
     }
 
     public String getEmail() {
@@ -67,7 +42,7 @@ public class UserDetail implements Serializable {
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        this.email = validateEmail(email);
     }
 
     public User getUser() {
@@ -86,12 +61,31 @@ public class UserDetail implements Serializable {
         this.id = id;
     }
 
+    private String validateName(String name){
+        if(name.isEmpty() || name.trim().isEmpty() || name.length() < 3){
+            throw new OperationNotCompletedException("The name can't be empty and must be minimum "+3+" character.");
+        }
+
+        return name.trim();
+    }
+
+    private String validateEmail(String email){
+        String regex = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^-]+(?:\\.[a-zA-Z0-9_!#$%&'*+/=?`{|}~^-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
+        Pattern pattern = Pattern.compile(regex);
+
+        if(email.isEmpty() || !pattern.matcher(email).matches()){
+            throw new IllegalArgumentException("The email address is invalid: "+email);
+        }
+
+        return email;
+    }
+
     @Override
     public String toString() {
-        return "User{" +
+        return "UserDetail{" +
+                "id=" + id +
                 ", name='" + name + '\'' +
                 ", email='" + email + '\'' +
-                ", auth=" + user +
                 '}';
     }
 }

@@ -2,9 +2,13 @@ package com.ias.ecommerce.controller;
 
 import com.ias.ecommerce.entity.Role;
 import com.ias.ecommerce.exception.ApiResponse;
+import com.ias.ecommerce.exception.customs.AuthorizationException;
 import com.ias.ecommerce.exception.customs.DataNotFoundException;
 import com.ias.ecommerce.exception.customs.OperationNotCompletedException;
 import com.ias.ecommerce.repository.RoleRepository;
+import com.ias.ecommerce.repository.UserRepository;
+import com.ias.ecommerce.security.Auth;
+import com.ias.ecommerce.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,15 +19,26 @@ import java.util.List;
 @RestController
 public class RoleController {
 
-    private final RoleRepository roleRepository;
+    private static final String CREATE_ROLE = "CREATE_ROLE";
+    private static final String READ_ROLE = "READ_ROLE";
+    private static final String UPDATE_ROLE = "UPDATE_ROLE";
+    private static final String DELETE_ROLE = "DELETE_ROLE";
 
-    public RoleController(RoleRepository roleRepository){
+    private final RoleRepository roleRepository;
+    private final Auth auth;
+
+    public RoleController(RoleRepository roleRepository, UserRepository userRepository){
         this.roleRepository = roleRepository;
+        this.auth = new Auth( new UserService(userRepository));
     }
 
     @PostMapping("/role")
     public ResponseEntity<Object> create(@RequestParam(value = "name") String name,
                         @RequestParam(value = "description") String description){
+
+        if(!auth.isAdmin() || !auth.hasPermission(CREATE_ROLE)){
+            throw new AuthorizationException();
+        }
 
         roleRepository.findByName(name).ifPresent(permission -> {
             throw new OperationNotCompletedException("Already exist a role with this name: "+name);
@@ -39,6 +54,11 @@ public class RoleController {
 
     @GetMapping("/role")
     public ResponseEntity<Object> readAll(){
+
+        if(!auth.isAdmin() || !auth.hasPermission(READ_ROLE)){
+            throw new AuthorizationException();
+        }
+
         List<Role> roleList = new ArrayList<>();
         roleRepository.findAll().forEach(roleList::add);
 
@@ -48,6 +68,10 @@ public class RoleController {
 
     @GetMapping("/role/{id}")
     public ResponseEntity<Object> readOne(@PathVariable(value = "id") Integer id){
+
+        if(!auth.isAdmin() || !auth.hasPermission(READ_ROLE)){
+            throw new AuthorizationException();
+        }
 
         Role role = roleRepository.findById(id).orElseThrow( () -> roleNotFound(id) );
 
@@ -59,6 +83,10 @@ public class RoleController {
     public ResponseEntity<Object> update(@RequestParam(name = "name") String name,
                                          @RequestParam(name = "description") String description,
                                          @PathVariable(name = "id") Integer id){
+
+        if(!auth.isAdmin() || !auth.hasPermission(UPDATE_ROLE)){
+            throw new AuthorizationException();
+        }
 
         Role role = roleRepository.findById(id).orElseThrow(() -> roleNotFound(id));
 
@@ -79,6 +107,10 @@ public class RoleController {
 
     @DeleteMapping("/role/{id}")
     public ResponseEntity<Object> delete(@PathVariable(name = "id") Integer id){
+
+        if(!auth.isAdmin() || !auth.hasPermission(DELETE_ROLE)){
+            throw new AuthorizationException();
+        }
 
         Role role = roleRepository.findById(id).orElseThrow(() -> roleNotFound(id));
         roleRepository.delete(role);
